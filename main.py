@@ -1,19 +1,17 @@
 import customtkinter as ctk
 import win32gui
 from pynput.mouse import Listener as Mouse_Listener
-from pynput.keyboard import Listener as Key_Listener, Key
 import threading
 
-class ColorPicker(ctk.CTk):
+class ColorDetector(ctk.CTk):
     def __init__(self):
         super().__init__()
 
         self.title("Color Analyzer")
-        self.geometry("300x200")
+        self.geometry("300x300")
         self.attributes('-topmost', True)
 
         self.color_display = ctk.CTkFrame(self, width=100, height=100, corner_radius=10)
-
         self.color_display.pack(pady=20)
 
         self.rgb_entry = ctk.CTkEntry(self, placeholder_text="RGB Color")
@@ -22,8 +20,31 @@ class ColorPicker(ctk.CTk):
         self.hex_entry = ctk.CTkEntry(self, placeholder_text="Hex Color")
         self.hex_entry.pack()
 
-        # Start color picker functionality in a separate thread to keep UI responsive
-        threading.Thread(target=self.start_color_picker, daemon=True).start()
+        # Add a start button to initiate the color picker
+        self.toggle_button = ctk.CTkButton(self, text="Start", command=self.start_button_clicked)
+        self.toggle_button.pack(pady=10)
+
+        # Variables to control listener state
+        self.color_picker_active = False
+        self.mouse_listener = None
+
+    def start_button_clicked(self):
+        """Switches the color picker functionality."""
+        if not self.color_picker_active:
+            self.color_picker_active = True
+            self.toggle_button.configure(text="Stop")
+            threading.Thread(target=self.start_color_picker, daemon=True).start()
+        else:
+            self.color_picker_active = False
+            self.toggle_button.configure(text="Start")
+            if self.mouse_listener:
+                self.mouse_listener.stop()
+
+
+    def start_color_picker(self):
+        self.mouse_listener = Mouse_Listener(on_click=self.on_click)
+        self.mouse_listener.start()
+        self.mouse_listener.join()
 
     def get_pixel_color(self, x, y):
         """Gets the color of the pixel at the given (x, y) screen coordinates."""
@@ -68,19 +89,7 @@ class ColorPicker(ctk.CTk):
 
         self.color_display.configure(fg_color=hex_color)
 
-    def start_color_picker(self):
-        with Key_Listener(on_press=self.on_key_press) as keyboard_listener, \
-                Mouse_Listener(on_click=self.on_click) as mouse_listener:
-            print("Color Picker active... Press 'Esc' to stop.")
-            keyboard_listener.join()
-            mouse_listener.stop()
-
-    def on_key_press(self, key):
-        if key == Key.esc:
-            self.stop_listeners = True
-            self.quit()  # Closes the GUI
-            return False  # Stops listener
 
 if __name__ == "__main__":
-    app = ColorPicker()
+    app = ColorDetector()
     app.mainloop()
